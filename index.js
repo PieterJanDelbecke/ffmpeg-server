@@ -28,9 +28,23 @@ app.post('/video/transcode', (req, res) => {
   if (!fs.existsSync('upload')) {
     fs.mkdirSync('upload');
   }
+  if (!fs.existsSync('upload/thumbnail')) {
+    fs.mkdirSync('upload/thumbnail');
+  }
   const fileName = getFileName();
   const path = `upload/${fileName}`;
+  const thumbnailImageName = fileName.replace('.mp4', '.jpeg');
+  const thumbnailImagePath = `upload/thumbnail/${fileName.replace(
+    '.mp4',
+    '.jpeg'
+  )}`;
   ffmpeg(req.files.video.tempFilePath)
+    .screenshot({
+      count: 1,
+      timestamps: [0],
+      filename: thumbnailImageName,
+      folder: 'upload/thumbnail',
+    })
     .saveToFile(path)
     .on('error', (error) => {
       console.log(error);
@@ -39,7 +53,11 @@ app.post('/video/transcode', (req, res) => {
     })
     .on('end', () => {
       removeTemps(req.files.video.tempFilePath);
-      res.json({ path: `http://localhost:4000/${path}`, fileName });
+      res.json({
+        path: `http://localhost:4000/${path}`,
+        thumbnailImageUrl: `http://localhost:4000/${thumbnailImagePath}`,
+        fileName,
+      });
       console.log('End...');
     });
 });
@@ -76,7 +94,10 @@ app.post('/video/trim', (req, res) => {
     .on('end', () => {
       removeTemps(path);
       console.log('End...');
-      res.send('video submitted');
+      res.json({
+        path: `http://localhost:4000/${newpath}`,
+        fileName: newFileName,
+      });
     });
 });
 
