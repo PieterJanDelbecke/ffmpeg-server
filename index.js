@@ -16,13 +16,20 @@ app.use(
     createParentPath: true,
   })
 );
+app.use(express.json());
+
+const getFileName = (prefix) => {
+  const time = Date.now();
+  const rand = Math.floor(Math.random() * 10000);
+  return `${prefix ?? ''}output-${rand}-${time}.mp4`;
+};
+
 app.post('/video/transcode', (req, res) => {
   if (!fs.existsSync('upload')) {
     fs.mkdirSync('upload');
   }
-  const time = Date.now();
-  const rand = Math.floor(Math.random() * 10000);
-  const path = `upload/output-${rand}-${time}.mp4`;
+  const fileName = getFileName();
+  const path = `upload/${fileName}`;
   ffmpeg(req.files.video.tempFilePath)
     .saveToFile(path)
     .on('error', (error) => {
@@ -32,7 +39,7 @@ app.post('/video/transcode', (req, res) => {
     })
     .on('end', () => {
       removeTemps(req.files.video.tempFilePath);
-      res.json({ path: `http://localhost:4000/${path}` });
+      res.json({ path: `http://localhost:4000/${path}`, fileName });
       console.log('End...');
     });
 });
@@ -54,20 +61,23 @@ app.post('/video/crop', (req, res) => {
 });
 
 app.post('/video/trim', (req, res) => {
-  console.log(req.files);
-  console.log(req.files.video.tempFilePath);
-  ffmpeg(req.files.video.tempFilePath)
-    .seekInput(3.0)
-    .seekOutput(2.0)
-    .saveToFile('output010.mp4')
-    .on('error', () => {
-      removeTemps(req.files.video.tempFilePath);
+  const [start, end] = req.body.range;
+  const path = `upload/${req.body.fileName}`;
+  const newFileName = getFileName('trim-');
+  const newpath = `upload/${newFileName}`;
+  ffmpeg(path)
+    .seekInput(Number(start).toFixed(2))
+    .seekOutput(Number(end).toFixed(2))
+    .saveToFile(newpath)
+    .on('error', (error) => {
+      removeTemps(newpath);
+      console.log(error);
     })
     .on('end', () => {
-      removeTemps(req.files.video.tempFilePath);
+      removeTemps(path);
       console.log('End...');
+      res.send('video submitted');
     });
-  res.send('video submitted');
 });
 
 const removeTemps = (tempFilePath) => {
