@@ -28,21 +28,10 @@ app.post("/video/transcode", (req, res) => {
   if (!fs.existsSync("upload")) {
     fs.mkdirSync("upload");
   }
-  if (!fs.existsSync("upload/screenshots")) {
-    fs.mkdirSync("upload/screenshots");
-  }
   const fileName = getFileName();
   const path = `upload/${fileName}`;
-  const imageName = fileName.replace(".mp4", ".jpeg");
-  const imagePath = `upload/screenshots/${fileName.replace(".mp4", ".jpeg")}`;
-  const dd = ffmpeg(req.files.video.tempFilePath)
+  ffmpeg(req.files.video.tempFilePath)
     .saveToFile(path)
-    .screenshot({
-      count: 1,
-      timestamps: [0],
-      filename: imageName,
-      folder: "upload/screenshots",
-    })
     .on("error", (error) => {
       console.log(error);
       removeTemps(req.files.video.tempFilePath);
@@ -54,7 +43,6 @@ app.post("/video/transcode", (req, res) => {
       res
         .json({
           path: `http://localhost:4000/${path}`,
-          imageUrl: `http://localhost:4000/${imagePath}`,
           fileName,
         })
         .end();
@@ -68,20 +56,9 @@ app.post("/video/crop", (req, res) => {
     const path = `upload/${req.body.fileName}`;
     const newFileName = getFileName("crop-");
     const newpath = `upload/${newFileName}`;
-    const imageName = newFileName.replace(".mp4", ".jpeg");
-    const imagePath = `upload/screenshots/${newFileName.replace(
-      ".mp4",
-      ".jpeg"
-    )}`;
     ffmpeg(path)
       .outputOptions(`-filter:v crop=${width}:${height}:${x}:${y}`)
       .saveToFile(newpath)
-      .screenshot({
-        count: 1,
-        timestamps: [0],
-        filename: imageName,
-        folder: "upload/screenshots",
-      })
       .on("error", (error) => {
         removeTemps(newpath);
         console.log(error);
@@ -91,7 +68,6 @@ app.post("/video/crop", (req, res) => {
         if (res.headersSent) return;
         res.json({
           path: `http://localhost:4000/${newpath}`,
-          imageUrl: `http://localhost:4000/${imagePath}`,
           fileName: newFileName,
         });
       });
@@ -107,21 +83,10 @@ app.post("/video/trim", (req, res) => {
     const path = `upload/${req.body.fileName}`;
     const newFileName = getFileName("trim-");
     const newpath = `upload/${newFileName}`;
-    const imageName = newFileName.replace(".mp4", ".jpeg");
-    const imagePath = `upload/screenshots/${newFileName.replace(
-      ".mp4",
-      ".jpeg"
-    )}`;
     ffmpeg(path)
       .seek(Number(start))
       .duration(Number(duration))
       .saveToFile(newpath)
-      .screenshot({
-        count: 1,
-        timestamps: [0],
-        filename: imageName,
-        folder: "upload/screenshots",
-      })
       .on("error", (error) => {
         removeTemps(newpath);
         console.log(error);
@@ -131,7 +96,6 @@ app.post("/video/trim", (req, res) => {
         if (res.headersSent) return;
         res.json({
           path: `http://localhost:4000/${newpath}`,
-          imageUrl: `http://localhost:4000/${imagePath}`,
           fileName: newFileName,
         });
       });
@@ -147,24 +111,11 @@ app.post("/video/trimcrop", (req, res) => {
     const path = `upload/${req.body.fileName}`;
     const newFileName = getFileName("trimcrop-");
     const newpath = `upload/${newFileName}`;
-    const imageName = newFileName.replace(".mp4", ".jpeg");
-    const imagePath = `upload/screenshots/${newFileName.replace(
-      ".mp4",
-      ".jpeg"
-    )}`;
     ffmpeg(path)
       .outputOptions(`-filter:v crop=${width}:${height}:${x}:${y}`)
       .seek(Number(start))
       .duration(Number(duration))
-      .output(newpath)
-      // .output(imagePath)
-      // .outputOptions(["-ss 00:00:00"])
-      // .screenshot({
-      //   count: 1,
-      //   timestamps: [0],
-      //   filename: imageName,
-      //   folder: "upload/screenshots",
-      // })
+      .saveToFile(newpath)
       .on("error", (error) => {
         removeTemps(newpath);
         console.log(error);
@@ -177,11 +128,9 @@ app.post("/video/trimcrop", (req, res) => {
         if (res.headersSent) return;
         res.json({
           path: `http://localhost:4000/${newpath}`,
-          imageUrl: `http://localhost:4000/${imagePath}`,
           fileName: newFileName,
         });
-      })
-      .run();
+      });
   } catch (error) {
     console.log(error);
   }
