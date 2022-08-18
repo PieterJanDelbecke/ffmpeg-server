@@ -62,19 +62,39 @@ app.post('/video/transcode', (req, res) => {
 });
 
 app.post('/video/crop', (req, res) => {
-  console.log(req.files);
-  console.log(req.files.video.tempFilePath);
-  ffmpeg(req.files.video.tempFilePath)
-    .outputOptions('-filter:v crop=1080:1080:0:0')
-    .saveToFile('output007.mp4')
-    .on('error', () => {
-      removeTemps(req.files.video.tempFilePath);
-    })
-    .on('end', () => {
-      removeTemps(req.files.video.tempFilePath);
-      console.log('End...');
-    });
-  res.send('video submitted');
+  try {
+    console.log("req.body: ",req.body)
+    const { x, y, height, width} = req.body
+    const path = `upload/${req.body.fileName}`;
+    const newFileName = getFileName('crop-');
+    const newpath = `upload/${newFileName}`;
+    const imageName = newFileName.replace('.mp4', '.jpeg');
+    const imagePath = `upload/screenshots/${newFileName.replace('.mp4', '.jpeg')}`;
+    ffmpeg(path)
+      .outputOptions(`-filter:v crop=${width}:${height}:${x}:${y}`)
+      .saveToFile(newpath)
+      .screenshot({
+        count: 1,
+        timestamps: [0],
+        filename: imageName,
+        folder: 'upload/screenshots',
+      })
+      .on('error', (error) => {
+        removeTemps(newpath);
+        console.log(error);
+      })
+      .on('end', (error) => {
+        removeTemps(path);
+        if (res.headersSent) return;
+        res.json({
+          path: `http://localhost:4000/${newpath}`,
+          imageUrl: `http://localhost:4000/${imagePath}`,
+          fileName: newFileName,
+        });
+      });
+  } catch (error) {
+    console.log(error);
+  }
 });
 
 app.post('/video/trim', (req, res) => {
@@ -84,8 +104,8 @@ app.post('/video/trim', (req, res) => {
     const path = `upload/${req.body.fileName}`;
     const newFileName = getFileName('trim-');
     const newpath = `upload/${newFileName}`;
-    const imageName = fileName.replace('.mp4', '.jpeg');
-    const imagePath = `upload/screenshots/${fileName.replace('.mp4', '.jpeg')}`;
+    const imageName = newFileName.replace('.mp4', '.jpeg');
+    const imagePath = `upload/screenshots/${newFileName.replace('.mp4', '.jpeg')}`;
     ffmpeg(path)
       .seek(Number(start))
       .duration(Number(duration))
